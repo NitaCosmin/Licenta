@@ -1,15 +1,9 @@
 server {
-    listen 80;
-    server_name 79.112.179.227;  # Replace with your domain name if available
+    listen       80;
+    server_name  79.112.179.227;  # This will be replaced by the script
 
-    # Redirect HTTP to HTTPS (if SSL is configured)
-    # listen 443 ssl;
-    # ssl_certificate /etc/letsencrypt/live/your_domain/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/your_domain/privkey.pem;
-
-    # Root location for Flask app
     location / {
-        proxy_pass http://localhost:5000/;
+        proxy_pass http://127.0.0.1:5000/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -19,7 +13,6 @@ server {
         proxy_send_timeout 90;
     }
 
-    # Location for ESP32-CAM stream
     location /stream {
         proxy_pass http://192.168.1.139:80;
         proxy_http_version 1.1;
@@ -35,16 +28,21 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Additional security headers
+    location ~ ^/api/(.*)$ {
+        proxy_pass http://127.0.0.1:5000/api/$1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 90;
+        proxy_connect_timeout 90;
+        proxy_send_timeout 90;
+    }
+    
     add_header X-Content-Type-Options nosniff;
     add_header X-Frame-Options DENY;
     add_header X-XSS-Protection "1; mode=block";
 
-    # Logging
-    access_log /var/log/nginx/access.log;
-    error_log /var/log/nginx/error.log;
-
-    # Error handling
     error_page 500 502 503 504 /50x.html;
     location = /50x.html {
         root /usr/share/nginx/html;

@@ -31,7 +31,6 @@ WantedBy=multi-user.target
 
 sudo systemctl enable flask_app.service
 
-
 # Start the service immediately:
 
 sudo systemctl start flask_app.service
