@@ -9,6 +9,7 @@ Preferences preferences;
 
 String ssid;
 String password;
+String BTname="ESP32-CAM";
 
 const char* RESET_KEYWORD = "RESET";
 
@@ -19,16 +20,17 @@ void handleRoot() {
 void setup() {
   Serial.begin(115200);
   SerialBT.begin("ESP32-CAM"); // Bluetooth device name
-  
-  preferences.begin("wifi-credentials", false); // Open preferences with namespace "wifi-credentials"
 
+  preferences.begin("wifi", false); // Open preferences with namespace "wifi"
+
+  preferences.putString("BT", BTname); 
   // Retrieve stored credentials
   ssid = preferences.getString("ssid", "");
   password = preferences.getString("password", "");
 
   if (ssid == "" || password == "") {
     Serial.println("No stored WiFi credentials. Waiting for Bluetooth client...");
-    
+
     // Wait for Bluetooth client connection
     while (!SerialBT.available()) {
       delay(1000);
@@ -40,17 +42,17 @@ void setup() {
     // Store credentials in preferences
     preferences.putString("ssid", ssid);
     preferences.putString("password", password);
-
-    // Attempt to connect to WiFi
-    connectToWiFi();
-  } else {
-    Serial.println("Using stored WiFi credentials:");
-    Serial.print("SSID: "); Serial.println(ssid);
-    Serial.print("Password: "); Serial.println(password);
-
-    // Attempt to connect to WiFi
-    connectToWiFi();
   }
+
+  // // Debug print to verify stored credentials
+  // Serial.println("Stored credentials after reading preferences:");
+  // Serial.print("SSID: "); Serial.println(ssid);
+  // Serial.print("Password: "); Serial.println(password);
+
+  displayStoredCredentials();
+
+  // Attempt to connect to WiFi
+  connectToWiFi();
 
   // Setup web server routes
   server.on("/", HTTP_GET, handleRoot);
@@ -58,20 +60,11 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-  // Display stored WiFi credentials
-  displayStoredCredentials();
-
   preferences.end(); // Close preferences
 }
 
 void loop() {
   server.handleClient(); // Handle client requests
-
-  // Reconnect to WiFi if disconnected
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi not connected! Retrying...");
-    connectToWiFi(); // Attempt to reconnect if not connected
-  }
 
   // Check for reset command
   checkForResetCommand();
@@ -107,13 +100,13 @@ void connectToWiFi() {
   Serial.print("SSID: "); Serial.println(ssid);
   Serial.print("Password: "); Serial.println(password);
 
-  WiFi.mode(WIFI_STA);
+  
   WiFi.begin(ssid.c_str(), password.c_str());
 
   int attempt = 0;
   while (WiFi.status() != WL_CONNECTED && attempt < 10) {
-    delay(1000);
     Serial.print(".");
+    delay(500);
     attempt++;
   }
 
@@ -121,25 +114,43 @@ void connectToWiFi() {
     Serial.println("Connected to WiFi!");
     Serial.print("IP Address: ");
     Serial.println(WiFi.localIP());
+
+    // Send IP address and port to the Bluetooth client
+    String ipInfo = "IP: " + WiFi.localIP().toString() + ", Port: 8080\n";
+    SerialBT.println(ipInfo);
+
   } else {
     Serial.println("Connection failed. Check credentials or network.");
+    SerialBT.println("Connection failed. Check credentials or network.");
   }
 }
 
 void checkForResetCommand() {
-  // Check for reset command
   if (SerialBT.available()) {
     String command = SerialBT.readStringUntil('\n');
     command.trim();
     if (command.equals(RESET_KEYWORD)) {
       resetCredentials();
+    } else if (command.equals("INFO")) {
+      sendInfo();
     }
   }
 }
 
+void sendInfo() {
+  if (WiFi.status() == WL_CONNECTED) {
+    String ipInfo = "http://" + WiFi.localIP().toString() + ": 8080\n";
+    SerialBT.println(BTname); 
+    SerialBT.println(ipInfo);
+  } else {
+    SerialBT.println("WiFi not connected.");
+  }
+}
+
+
 void resetCredentials() {
   Serial.println("Resetting WiFi credentials...");
-  preferences.begin("wifi-credentials", false);
+  preferences.begin("wifi", false);
   preferences.remove("ssid");
   preferences.remove("password");
   preferences.end();

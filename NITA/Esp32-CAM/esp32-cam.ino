@@ -7,10 +7,15 @@
 #include "soc/soc.h" // Disable brownout problems
 #include "soc/rtc_cntl_reg.h"  // Disable brownout problems
 #include "esp_http_server.h"
+#include <BluetoothSerial.h>
+#include <WebServer.h>
+#include <Preferences.h>
 
+
+Preferences preferences;
 // Replace with your network credentials
-const char* ssid = "WI-FI";
-const char* password ="1234554321";
+String ssid;
+String password;
 
 // Camera pins configuration for AI Thinker module
 #define PART_BOUNDARY "123456789000000000000987654321"
@@ -181,7 +186,6 @@ esp_err_t message_handler(httpd_req_t *req){
     httpd_resp_send(req, "Message received", HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
-
 /**
  * @brief Initializes and starts the camera web server.
  * 
@@ -225,7 +229,9 @@ void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
-
+  preferences.begin("wifi", false); // Open preferences with namespace "wifi"
+  ssid = preferences.getString("ssid", "");
+  password = preferences.getString("password", "");
   // Camera configuration
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -264,14 +270,24 @@ void setup() {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+  WiFi.begin(ssid.c_str(), password.c_str());
+
+  int attempt = 0;
+  while (WiFi.status() != WL_CONNECTED && attempt < 10) {
     Serial.print(".");
+    delay(500);
+    attempt++;
   }
-  Serial.println("");
-  Serial.print("WiFi connected with IP: ");
-  Serial.println(WiFi.localIP());
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Connected to WiFi!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("Failed to connect to WiFi. Rebooting...");
+    delay(5000);
+    ESP.restart();
+  }
 
   startCameraServer();
 }
