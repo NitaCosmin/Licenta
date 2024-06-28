@@ -7,9 +7,11 @@ import requests
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Needed for flash messages
 
-ESP32_IP = 'http://192.168.1.139:80'  # Replace with the public IP or domain name
-LOCAL_IP = 'http://192.168.1.139:80'  # Replace with the local IP and port of your Raspberry Pi
-
+ESP32_CAM = 'http://192.168.1.135:80'  # Replace with the public IP or domain name
+LOCAL_IP = 'http://192.168.1.135:80'  # Replace with the local IP and port of your Raspberry Pi
+ESP32_1= 'http://192.168.1.129:8080'
+# ESP32_2='http://192.168.1.129:8080'
+# ESP32-3
 # Define your local network range(s)
 local_networks = [
     ipaddress.IPv4Network('192.168.0.0/16'),
@@ -17,7 +19,7 @@ local_networks = [
     # Add more networks if necessary
 ]
 
-DATABASE_PATH = '/home/pi/licenta.db'
+DATABASE_PATH = '/home/pi/Programs/licenta.db'
 
 def get_client_ip():
     """
@@ -71,9 +73,13 @@ def is_same_network(ip):
     # If the IP address is not within any of the local networks, return False
     return False
 
+
+
 @app.route('/')
 def home():
-    """Renders the home page with a menu and buttons for each POST endpoint."""
+    """
+    Renders the home page with a menu, buttons, and temperature/humidity display.
+    """
     menu = '''
     <div class="menu">
         <a href="#">Home</a>
@@ -124,6 +130,7 @@ def home():
         </form>
     </div>
     '''
+
     get_all_devices_data = '''
     <div>
         <form action="/api/get_all_devices_data" method="get">
@@ -131,6 +138,151 @@ def home():
         </form>
     </div>
     '''
+
+    form_post_door_data = '''
+    <div>
+        <form action="/api/post_door_data" method="post">
+            <button type="submit">Post Door Data</button>
+        </form>
+    </div>
+    '''
+
+    get_all_devices_data = '''
+    <div>
+        <form action="/api/get_all_devices_data" method="get">
+            <button type="submit">Get All Devices Data</button>
+        </form>
+    </div>
+    '''
+
+    form_open = '''
+    <div>
+        <button id="activateRelayButton">Open Door</button>
+        <div id="message"></div>
+
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                $('#activateRelayButton').click(function() {
+                    $.ajax({
+                        url: '/open',
+                        type: 'POST',
+                        success: function(response) {
+                            $('#message').text(response.message);
+                        },
+                        error: function(xhr) {
+                            $('#message').text(xhr.responseJSON.message);
+                        }
+                    });
+                });
+            });
+        </script>
+    </div>
+    '''
+
+    form_temperature_humidity = '''
+    <div id="tempHumData" class="temp-hum-container">
+        <!-- Temperature and humidity will be displayed here -->
+        <h2>Temperature: ${data.temperature} °C</h2>
+        <h2>Humidity: ${data.humidity} %</h2>
+        <h2>Date: ${data.timestamp}</h2>
+    </div>
+
+    <script>
+        function fetchTemperatureHumidity() {
+            fetch('/api/temperature_humidity')
+                .then(response => response.json())
+                .then(data => {
+                    const tempHumContainer = document.getElementById('tempHumData');
+                    if (data.timestamp) {
+                        tempHumContainer.innerHTML = `
+                            <h2>Temperature: ${data.temperature.toFixed(2)} °C</h2>
+                            <h2>Humidity: ${data.humidity} %</h2>
+                            <h2>Date: ${new Date(data.timestamp).toLocaleDateString()}</h2>
+                        `;
+                    } else {
+                        tempHumContainer.innerHTML = '<h2>No data found</h2>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        // Fetch data when the page loads
+        window.onload = fetchTemperatureHumidity;
+
+        // Refresh data every 60 seconds
+        setInterval(fetchTemperatureHumidity, 60000);
+    </script>
+    '''
+    form_door_status = '''
+    <div id="doorStatusTable" class="door-status-container">
+        <!-- Door status table will be displayed here -->
+    </div>
+
+    <script>
+        function fetchDoorStatus() {
+            fetch('/api/door_status')
+                .then(response => response.json())
+                .then(data => {
+                    const doorStatusTable = document.getElementById('doorStatusTable');
+                    if (data.length > 0) {
+                        let tableContent = '<table><tr><th>Time</th><th>Status</th><th>Opened Via</th></tr>';
+                        data.forEach(row => {
+                            tableContent += `<tr>
+                                <td>${new Date(row.timestamp).toLocaleString()}</td>
+                                <td>${row.status}</td>
+                                <td>${row.door_opened_via}</td>
+                            </tr>`;
+                        });
+                        tableContent += '</table>';
+                        doorStatusTable.innerHTML = tableContent;
+                    } else {
+                        doorStatusTable.innerHTML = '<h2>No door status data found</h2>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        window.onload = fetchDoorStatus;
+    </script>
+    '''
+
+    form_last_door_unlock = '''
+    <div id="lastDoorUnlock" class="last-door-unlock-container">
+        <!-- Last door unlock data will be displayed here -->
+        
+    </div>
+
+    <script>
+        function fetchLastDoorUnlock() {
+            fetch('/api/last_door_unlock')
+                .then(response => response.json())
+                .then(data => {
+                    const lastDoorUnlock = document.getElementById('lastDoorUnlock');
+                    if (data.timestamp) {
+                        lastDoorUnlock.innerHTML = `
+                            <h2>Last Door Unlock</h2>
+                            <p>Time: ${new Date(data.timestamp).toLocaleString()}</p>
+                            <p>Status: ${data.status}</p>
+                            <p>Opened Via: ${data.door_opened_via}</p>
+                        `;
+                    } else {
+                        lastDoorUnlock.innerHTML = '<h2>No unlock data found</h2>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                });
+        }
+
+        window.onload = fetchLastDoorUnlock;
+    </script>
+    '''
+
 
     template = f'''
     <html lang="en">
@@ -170,7 +322,17 @@ def home():
             form {{
                 margin-bottom: 20px;
             }}
+            .temp-hum-container {{
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                background-color: #f9f9f9;
+                padding: 10px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+            }}
         </style>
+
     </head>
     <body>
         {menu}
@@ -180,6 +342,10 @@ def home():
         {form_add_device}
         {form_post_door_data}
         {get_all_devices_data}
+        {form_open}
+        {form_temperature_humidity}
+        {form_last_door_unlock}
+        {form_door_status}
     </body>
     </html>
     '''
@@ -187,7 +353,8 @@ def home():
     return render_template_string(template)
 
 
-@app.route('/api/redirect_to_stream', methods=['POST'])
+
+@app.route('/redirect_to_stream', methods=['POST'])
 def redirect_to_stream():
     """
     Redirects the user to the appropriate stream based on their IP address.
@@ -206,10 +373,10 @@ def redirect_to_stream():
     # Check if the user is on the same network
     if is_same_network(user_ip):
         # User is on the same network
-        return redirect(LOCAL_IP)
+        return redirect(ESP32_CAM)
     else:
         # User is not on the same network
-        return redirect(ESP32_IP)
+        return redirect(ESP32_CAM)
 
 @app.route('/receive_data', methods=['POST'])
 def receive_data():
@@ -310,5 +477,130 @@ def get_devices_details():
 
     return jsonify(details)
 
+@app.route('/open', methods=['POST'])
+def open():
+    """
+    Sends a request to the ESP32 endpoint to activate the relay.
+    
+    This function will send a GET request to the ESP32 endpoint to activate the relay.
+    """
+    try:
+        response = requests.get(f"{ESP32_1}/activate")
+        if response.status_code == 200:
+            return jsonify(message="Door was opened successfully"), 200
+        else:
+            return jsonify(message=f"Failed to activate relay: {response.status_code}"), 500
+    except requests.RequestException as e:
+        return jsonify(message=f"Error reaching ESP32: {str(e)}"), 500
+
+@app.route('/api/temperature_humidity', methods=['GET'])
+def get_temperature_humidity():
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM temperature_humidity ORDER BY timestamp DESC LIMIT 1')
+    data = cursor.fetchone()
+    conn.close()
+
+    if data:
+        return jsonify({
+            "timestamp": data[0],
+            "temperature": data[1],
+            "humidity": data[2]
+        })
+    else:
+        return "No data found", 404
+
+@app.route('/receive_temp_hum_data', methods=['POST'])
+def receive_temp_hum_data():
+    if request.method == 'POST':
+        data = request.get_json()
+        if not data or 'temperature' not in data or 'humidity' not in data:
+            return "Temperature and humidity are required", 400
+
+        temperature = data['temperature']
+        humidity = data['humidity']
+
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS temperature_humidity (
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                temperature REAL NOT NULL,
+                humidity REAL NOT NULL
+            )
+        ''')
+
+        cursor.execute('INSERT INTO temperature_humidity (temperature, humidity) VALUES (?, ?)', (temperature, humidity))
+        conn.commit()
+        conn.close()
+
+        return "Data received and added to database successfully", 201
+
+@app.route('/receive_door_status_data', methods=['POST'])
+def receive_door_status_data():
+    if request.method == 'POST':
+        data = request.get_json()
+        if not data or 'status' not in data or 'door_opened_via' not in data:
+            return "Status and door_opened_via are required", 400
+
+        status = data['status']
+        door_opened_via = data['door_opened_via']
+
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS door_status (
+                id INTEGER PRIMARY KEY,
+                status TEXT NOT NULL,
+                door_opened_via TEXT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('INSERT INTO door_status (status, door_opened_via) VALUES (?, ?)', (status, door_opened_via))
+        conn.commit()
+        conn.close()
+
+        return "Data received and added to database successfully", 201
+@app.route('/api/door_status', methods=['GET'])
+def get_door_status():
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM door_status ORDER BY timestamp DESC')
+    data = cursor.fetchall()
+    conn.close()
+
+    return jsonify([
+        {
+            "status": row[1],
+            "door_opened_via": row[2],
+            "timestamp": row[3]
+        }
+        for row in data
+    ])
+
+@app.route('/api/last_door_unlock', methods=['GET'])
+def get_last_door_unlock():
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM door_status WHERE status = "unlocked" ORDER BY timestamp DESC LIMIT 1')
+    data = cursor.fetchone()
+    conn.close()
+
+    if data:
+        return jsonify({
+            "timestamp": data[3],
+            "status": data[1],
+            "door_opened_via": data[2]
+        })
+    else:
+        return "No unlock data found", 404
+
+
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000)
+    app.run(host='0.0.0.0', port=5000)
