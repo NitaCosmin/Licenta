@@ -1,0 +1,45 @@
+import schedule
+import time
+from threading import Thread
+
+# Function to open the door
+def open_door():
+    try:
+        response = requests.get(f"{ESP32_1}/activate")
+        if response.status_code == 200:
+            print("Door was opened successfully")
+        else:
+            print(f"Failed to activate relay: {response.status_code}")
+    except requests.RequestException as e:
+        print(f"Error reaching ESP32: {str(e)}")
+
+# Function to schedule door opening at a specific time
+def schedule_door_open(hour, minute):
+    schedule.clear()  # Clear any existing schedules
+    schedule.every().day.at(f"{hour:02d}:{minute:02d}").do(open_door)
+    print(f"Scheduled door to open at {hour:02d}:{minute:02d} every day")
+
+# Background thread to run the scheduler
+def run_scheduler():
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+# Start the scheduler in a background thread
+scheduler_thread = Thread(target=run_scheduler)
+scheduler_thread.daemon = True
+scheduler_thread.start()
+
+@app.route('/schedule_open', methods=['POST'])
+def schedule_open():
+    data = request.get_json()
+    if not data or 'hour' not in data or 'minute' not in data:
+        return "Hour and minute are required", 400
+
+    hour = data['hour']
+    minute = data['minute']
+
+    # Schedule the door to open at the specified time
+    schedule_door_open(hour, minute)
+
+    return f"Door scheduled to open at {hour:02d}:{minute:02d} every day", 200
