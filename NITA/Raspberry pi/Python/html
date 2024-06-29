@@ -1,0 +1,34 @@
+<div>
+    <form id="scheduleForm" action="/schedule_open" method="post">
+        <label for="hour">Hour:</label>
+        <input type="number" id="hour" name="hour" min="0" max="23" required>
+        <label for="minute">Minute:</label>
+        <input type="number" id="minute" name="minute" min="0" max="59" required>
+        <button type="submit">Schedule Door Opening</button>
+    </form>
+    <div id="scheduleMessage"></div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('#scheduleForm').submit(function(event) {
+            event.preventDefault();
+
+            var hour = $('#hour').val();
+            var minute = $('#minute').val();
+
+            $.ajax({
+                url: '/schedule_open',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ hour: hour, minute: minute }),
+                success: function(response) {
+                    $('#scheduleMessage').text(response);
+                },
+                error: function(xhr) {
+                    $('#scheduleMessage').text('Failed to schedule door opening: ' + xhr.responseText);
+                }
+            });
+        });
+    });
+</script>
