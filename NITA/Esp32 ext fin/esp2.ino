@@ -38,9 +38,9 @@ TFT_eSPI tft = TFT_eSPI();
 WiFiServer server(80);
 WiFiServer server1(8080);
 
-const char* serverUrl1 = "http://192.168.200.119:5000/receive_door_status_data";
+const char* serverUrl1 = "http://192.168.200.119:5000/api/receive_door_status_data";
 
-const char* serverUrl = "http://192.168.200.119:5000/receive_temp_hum_data";  // Replace with your Flask server URL
+const char* serverUrl = "http://192.168.200.119:5000/api/receive_temp_hum_data";  // Replace with your Flask server URL
 
 const char* host = "192.168.200.40"; // IP address of the receiver ESP32
 
