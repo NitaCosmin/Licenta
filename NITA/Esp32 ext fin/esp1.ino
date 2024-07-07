@@ -26,11 +26,11 @@ String BTname="ESP32-1";
 const char* RESET_KEYWORD = "RESET";
 
 WiFiServer server(80);
-const char* host = "192.168.1.128"; // IP address of the receiver ESP32
+const char* host = "192.168.200.168"; // IP address of the receiver ESP32
 
-IPAddress local_IP("192.168.1.129"); // Set your desired static IP address
+IPAddress local_IP("192.168.200.40"); // Set your desired static IP address
 
-IPAddress gateway("192.168.1.1"); 
+IPAddress gateway("192.168.200.1"); 
 IPAddress subnet("255.255.255.0"); // Subnet mask for iPhone hotspot
 IPAddress primaryDNS("8.8.8.8"); // Optional: Google DNS
 IPAddress secondaryDNS("8.8.4.4"); // Optional: Google DNS
@@ -493,6 +493,5 @@ void resetCredentials() {
   SerialBT.println("Credentials reset");
   ESP.restart();
 }
-
 
 
