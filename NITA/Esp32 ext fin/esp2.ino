@@ -41,10 +41,12 @@ WiFiServer server1(8080);
 const char* serverUrl1 = "http://192.168.200.119:5000/receive_door_status_data";
 const char* serverUrl = "http://192.168.200.119:5000/receive_temp_hum_data";  // Replace with your Flask server URL
 
-const char* host = "192.168.200.50";
-IPAddress local_IP("192.168.200.168"); // Set your desired static IP address
-IPAddress gateway("192.168.200.1"); 
+IPAddress local_IP("172.20.10.40"); // Set your desired static IP address
+IPAddress gateway("172.20.10.1"); 
 IPAddress subnet("255.255.255.0"); // Subnet mask for iPhone hotspot
+
+IPAddress primaryDNS("8.8.8.8"); // Optional: Google DNS
+IPAddress secondaryDNS("8.8.4.4"); // Optional: Google DNS
 // NTP server details
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 3 * 3600; // UTC+2 for Eastern European Time (EET)
@@ -113,7 +115,7 @@ void setup() {
   pinMode(Interiorled, OUTPUT);
   digitalWrite(Interiorled, LOW);
   // Connect to WiFi
-   if (!WiFi.config(local_IP, gateway, subnet)) {
+   if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS)) {
     Serial.println("STA Failed to configure");
   }
   // Initialize DHT sensor
